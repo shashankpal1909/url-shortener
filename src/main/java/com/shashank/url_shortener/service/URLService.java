@@ -29,6 +29,8 @@ public class URLService {
 
     static final String CACHE_KEY_PREFIX = "url:";
     static final String CLICK_KEY_PREFIX = "clicks:";
+    /** Sentinel stored in Redis to indicate that a short code does not exist (negative cache). */
+    static final String NEGATIVE_CACHE_SENTINEL = "\u0000";
 
     private static final int MAX_GENERATION_ATTEMPTS = 10;
 
@@ -78,9 +80,18 @@ public class URLService {
     }
 
     /**
-     * Phase 1: Cache-first lookup.
-     * Checks Redis for a cached originalURL; on miss loads from DB and populates
-     * the cache with a TTL so subsequent requests avoid DB reads.
+     * Phase 1: Cache-first lookup with negative-cache support.
+     *
+     * <ul>
+     *   <li>Positive cache hit — returns the cached original URL immediately.</li>
+     *   <li>Negative cache hit — the sentinel {@value #NEGATIVE_CACHE_SENTINEL}
+     *       is stored in Redis when a short code was previously confirmed absent;
+     *       returns {@link Optional#empty()} without touching the DB.</li>
+     *   <li>Cache miss — queries the DB. On a DB hit the original URL is cached
+     *       with the positive TTL. On a DB miss the sentinel is cached with the
+     *       (shorter) negative TTL so subsequent requests for the same absent
+     *       code do not reach the database.</li>
+     * </ul>
      */
     public Optional<String> getOriginalURL(String shortCode) {
         if (featureProperties.isCacheEnabled() && redisTemplate != null) {
@@ -88,6 +99,10 @@ public class URLService {
             try {
                 String cached = redisTemplate.opsForValue().get(cacheKey);
                 if (cached != null) {
+                    if (NEGATIVE_CACHE_SENTINEL.equals(cached)) {
+                        log.debug("Negative cache hit for shortCode={}", shortCode);
+                        return Optional.empty();
+                    }
                     return Optional.of(cached);
                 }
                 log.debug("Cache miss for shortCode={}", shortCode);
@@ -100,15 +115,24 @@ public class URLService {
                 .map(URL::getOriginalURL);
 
         if (featureProperties.isCacheEnabled() && redisTemplate != null) {
-            result.ifPresent(url -> {
-                String cacheKey = CACHE_KEY_PREFIX + shortCode;
+            String cacheKey = CACHE_KEY_PREFIX + shortCode;
+            if (result.isPresent()) {
                 long ttl = appProperties.getCache().getUrlTtlSeconds();
                 try {
-                    redisTemplate.opsForValue().set(cacheKey, url, Duration.ofSeconds(ttl));
+                    redisTemplate.opsForValue().set(cacheKey, result.get(), Duration.ofSeconds(ttl));
                 } catch (DataAccessException ex) {
                     log.warn("Redis unavailable when populating cache for shortCode={}", shortCode, ex);
                 }
-            });
+            } else {
+                // Negative cache: store sentinel so repeated misses skip the DB.
+                long negativeTtl = appProperties.getCache().getNegativeTtlSeconds();
+                try {
+                    redisTemplate.opsForValue().set(cacheKey, NEGATIVE_CACHE_SENTINEL, Duration.ofSeconds(negativeTtl));
+                    log.debug("Stored negative cache entry for shortCode={} (TTL={}s)", shortCode, negativeTtl);
+                } catch (DataAccessException ex) {
+                    log.warn("Redis unavailable when storing negative cache for shortCode={}", shortCode, ex);
+                }
+            }
         }
 
         return result;

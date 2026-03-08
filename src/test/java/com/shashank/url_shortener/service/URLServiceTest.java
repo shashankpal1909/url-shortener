@@ -145,9 +145,34 @@ class URLServiceTest {
     }
 
     @Test
-    void getOriginalURL_cacheEnabled_missingShortCodeReturnsEmpty() {
+    void getOriginalURL_cacheEnabled_missingShortCodeStoresSentinelAndReturnsEmpty() {
         when(featureProperties.isCacheEnabled()).thenReturn(true);
         when(valueOps.get(URLService.CACHE_KEY_PREFIX + "nope")).thenReturn(null);
+        when(urlRepository.findByShortCode("nope")).thenReturn(Optional.empty());
+
+        Optional<String> result = urlService.getOriginalURL("nope");
+
+        assertThat(result).isEmpty();
+        // Sentinel must be written to Redis so subsequent requests skip the DB.
+        verify(valueOps).set(eq(URLService.CACHE_KEY_PREFIX + "nope"),
+                eq(URLService.NEGATIVE_CACHE_SENTINEL), any());
+    }
+
+    @Test
+    void getOriginalURL_cacheEnabled_negativeCacheHitSkipsDb() {
+        when(featureProperties.isCacheEnabled()).thenReturn(true);
+        when(valueOps.get(URLService.CACHE_KEY_PREFIX + "gone"))
+                .thenReturn(URLService.NEGATIVE_CACHE_SENTINEL);
+
+        Optional<String> result = urlService.getOriginalURL("gone");
+
+        assertThat(result).isEmpty();
+        verify(urlRepository, never()).findByShortCode(anyString());
+    }
+
+    @Test
+    void getOriginalURL_cacheDisabled_negativeCacheNotWritten() {
+        when(featureProperties.isCacheEnabled()).thenReturn(false);
         when(urlRepository.findByShortCode("nope")).thenReturn(Optional.empty());
 
         Optional<String> result = urlService.getOriginalURL("nope");

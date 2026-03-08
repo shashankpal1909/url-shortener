@@ -24,6 +24,7 @@ feature:
 app:
   cache:
     url-ttl-seconds: ${APP_CACHE_URL_TTL_SECONDS:3600}
+    negative-ttl-seconds: ${APP_CACHE_NEGATIVE_TTL_SECONDS:300}
   click-aggregation:
     flush-interval-ms: ${APP_CLICK_AGGREGATION_FLUSH_INTERVAL_MS:10000}
   datasource:
