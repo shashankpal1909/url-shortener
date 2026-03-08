@@ -57,12 +57,12 @@ graph TB
     subgraph Application["Spring Boot Application"]
         Controller[URLController]
         Service[URLService]
-        Aggregator[ClickAggregationService\nscheduled flush]
+        Aggregator["ClickAggregationService<br/>scheduled flush"]
     end
 
     subgraph Cache["Redis (optional)"]
-        URLCache["url:shortCode\noriginalURL or sentinel"]
-        ClickCache["clicks:shortCode\nINTEGER counter"]
+        URLCache["url:shortCode<br/>originalURL or sentinel"]
+        ClickCache["clicks:shortCode<br/>INTEGER counter"]
     end
 
     subgraph DB["PostgreSQL"]
@@ -174,28 +174,28 @@ This diagram shows all three lookup paths: negative cache hit, positive cache hi
 
 ```mermaid
 flowchart TD
-    A([GET /:shortCode]) --> B{cache-enabled\nAND Redis up?}
+    A([GET /:shortCode]) --> B{"cache-enabled<br/>AND Redis up?"}
 
     B -->|No| DB1[Query PostgreSQL]
     B -->|Yes| RC[GET url:shortCode from Redis]
 
     RC --> C{Cached value?}
 
-    C -->|Sentinel \\0| NEG[Return 404\nNo DB hit ✓]
-    C -->|Original URL| HIT[Return 302 Redirect\nNo DB hit ✓]
+    C -->|Sentinel \\0| NEG["Return 404<br/>No DB hit ✓"]
+    C -->|Original URL| HIT["Return 302 Redirect<br/>No DB hit ✓"]
     C -->|nil — cache miss| DB1
 
     DB1 --> D{Found in DB?}
 
-    D -->|Yes| STORE_POS["SET url:shortCode = originalURL\n(TTL = url-ttl-seconds)"]
-    D -->|No| STORE_NEG["SET url:shortCode = sentinel\n(TTL = negative-ttl-seconds)"]
+    D -->|Yes| STORE_POS["SET url:shortCode = originalURL<br/>(TTL = url-ttl-seconds)"]
+    D -->|No| STORE_NEG["SET url:shortCode = sentinel<br/>(TTL = negative-ttl-seconds)"]
 
     STORE_POS --> R302[Return 302 Redirect]
     STORE_NEG --> R404[Return 404]
 
-    R302 --> INC{async-clicks-enabled\nAND Redis up?}
-    INC -->|Yes| RINCR["INCR clicks:shortCode\n(Redis only — no DB write)"]
-    INC -->|No| DBINCR["UPDATE urls SET clickCount = clickCount + 1\n(atomic single statement)"]
+    R302 --> INC{"async-clicks-enabled<br/>AND Redis up?"}
+    INC -->|Yes| RINCR["INCR clicks:shortCode<br/>(Redis only — no DB write)"]
+    INC -->|No| DBINCR["UPDATE urls SET clickCount = clickCount + 1<br/>(atomic single statement)"]
 ```
 
 ---
@@ -208,7 +208,7 @@ When `feature.async-clicks-enabled=true`, click counts are first written to Redi
 sequenceDiagram
     participant Redirect as Redirect Path
     participant Redis
-    participant Aggregator as ClickAggregationService\n(scheduled)
+    participant Aggregator as ClickAggregationService
     participant DB as PostgreSQL
 
     Note over Redirect,Redis: Per-redirect — no DB write
@@ -226,7 +226,7 @@ sequenceDiagram
         DB-->>Aggregator: rows updated
     else DB write fails (transient outage)
         Aggregator->>Redis: INCRBY clicks:shortCode n (restore drained values)
-        Note right of Aggregator: Clicks preserved;\nnext cycle retries
+        Note right of Aggregator: Clicks preserved; next cycle retries
     end
 ```
 
