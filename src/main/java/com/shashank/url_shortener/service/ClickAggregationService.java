@@ -2,8 +2,10 @@ package com.shashank.url_shortener.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -54,6 +56,8 @@ public class ClickAggregationService {
      *       counters in a single round-trip.</li>
      *   <li>Applies the retrieved increments to PostgreSQL via batch atomic
      *       {@code UPDATE} statements.</li>
+     *   <li>If the DB update phase fails, the drained values are restored to
+     *       Redis via {@code INCRBY} so no clicks are lost.</li>
      * </ol>
      *
      * <p>Any new increments that arrive after the {@code GETDEL} are captured
@@ -81,15 +85,30 @@ public class ClickAggregationService {
             }
         });
 
+        // Parse the raw values into a shortCode→increment map, skipping blanks.
+        Map<String, Long> increments = parseIncrements(keys, rawValues);
+        if (increments.isEmpty()) {
+            return;
+        }
+
         // Step 3: Apply increments to the database.
-        applyIncrementsToDatabase(keys, rawValues);
+        // If the DB writes fail, restore the drained values to Redis so no
+        // clicks are permanently lost (Redis is not part of the DB transaction).
+        try {
+            applyIncrementsToDatabase(increments);
+        } catch (DataAccessException ex) {
+            log.error("DB update failed during click flush; restoring {} counters to Redis", increments.size(), ex);
+            restoreToRedis(increments);
+            throw ex;
+        }
     }
 
     /**
-     * Applies the Redis counter increments to the database.
-     * Called within the transaction started by flushClickCounts().
+     * Parses raw pipelined GETDEL results into a {@code shortCode → increment} map,
+     * skipping null, zero, or non-numeric entries.
      */
-    private void applyIncrementsToDatabase(List<String> keys, List<Object> rawValues) {
+    private Map<String, Long> parseIncrements(List<String> keys, List<Object> rawValues) {
+        Map<String, Long> increments = new LinkedHashMap<>();
         for (int i = 0; i < keys.size(); i++) {
             Object raw = rawValues.get(i);
             if (raw == null) {
@@ -106,13 +125,42 @@ public class ClickAggregationService {
                 continue;
             }
             String shortCode = keys.get(i).substring(URLService.CLICK_KEY_PREFIX.length());
+            increments.put(shortCode, increment);
+        }
+        return increments;
+    }
+
+    /**
+     * Applies the parsed click-count increments to the database.
+     * Called within the transaction started by flushClickCounts().
+     */
+    private void applyIncrementsToDatabase(Map<String, Long> increments) {
+        increments.forEach((shortCode, increment) -> {
             int updated = urlRepository.incrementClickCountBy(shortCode, increment);
             if (updated == 0) {
                 log.warn("No URL found when flushing click count for shortCode={}", shortCode);
             } else {
                 log.debug("Flushed {} clicks for shortCode={}", increment, shortCode);
             }
-        }
+        });
+    }
+
+    /**
+     * Restores drained click counts back to Redis using {@code INCRBY} so that
+     * no clicks are permanently lost when a DB failure prevents them being saved.
+     * Any new increments that arrived between the GETDEL and this restore are
+     * correctly accumulated on top of the restored values.
+     */
+    private void restoreToRedis(Map<String, Long> increments) {
+        increments.forEach((shortCode, increment) -> {
+            String key = URLService.CLICK_KEY_PREFIX + shortCode;
+            try {
+                redisTemplate.opsForValue().increment(key, increment);
+            } catch (DataAccessException ex) {
+                log.error("Failed to restore {} clicks to Redis key={} after DB failure; "
+                        + "these clicks may be lost", increment, key, ex);
+            }
+        });
     }
 
     private List<String> scanClickKeys() {

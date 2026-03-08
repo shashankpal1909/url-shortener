@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -84,11 +85,15 @@ public class URLService {
     public Optional<String> getOriginalURL(String shortCode) {
         if (featureProperties.isCacheEnabled() && redisTemplate != null) {
             String cacheKey = CACHE_KEY_PREFIX + shortCode;
-            String cached = redisTemplate.opsForValue().get(cacheKey);
-            if (cached != null) {
-                return Optional.of(cached);
+            try {
+                String cached = redisTemplate.opsForValue().get(cacheKey);
+                if (cached != null) {
+                    return Optional.of(cached);
+                }
+                log.debug("Cache miss for shortCode={}", shortCode);
+            } catch (DataAccessException ex) {
+                log.warn("Redis unavailable during cache lookup for shortCode={}; falling back to DB", shortCode, ex);
             }
-            log.debug("Cache miss for shortCode={}", shortCode);
         }
 
         Optional<String> result = urlRepository.findByShortCode(shortCode)
@@ -98,7 +103,11 @@ public class URLService {
             result.ifPresent(url -> {
                 String cacheKey = CACHE_KEY_PREFIX + shortCode;
                 long ttl = appProperties.getCache().getUrlTtlSeconds();
-                redisTemplate.opsForValue().set(cacheKey, url, Duration.ofSeconds(ttl));
+                try {
+                    redisTemplate.opsForValue().set(cacheKey, url, Duration.ofSeconds(ttl));
+                } catch (DataAccessException ex) {
+                    log.warn("Redis unavailable when populating cache for shortCode={}", shortCode, ex);
+                }
             });
         }
 
@@ -118,8 +127,13 @@ public class URLService {
     @Transactional
     public void incrementClickCount(String shortCode) {
         if (featureProperties.isAsyncClicksEnabled() && redisTemplate != null) {
-            redisTemplate.opsForValue().increment(CLICK_KEY_PREFIX + shortCode);
-            return;
+            try {
+                redisTemplate.opsForValue().increment(CLICK_KEY_PREFIX + shortCode);
+                return;
+            } catch (DataAccessException ex) {
+                // Redis is optional on the redirect path; fall back to Phase 0 DB update.
+                log.warn("Failed to increment Redis click counter for shortCode={}. Falling back to DB update.", shortCode, ex);
+            }
         }
 
         // Phase 0: atomic single-statement DB update (no read-modify-write).

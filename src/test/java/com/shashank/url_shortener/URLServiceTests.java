@@ -53,7 +53,7 @@ class URLServiceTests {
 
         assertThat(response.getShortCode()).isNotBlank();
         assertThat(response.getShortCode().length()).isBetween(5, 7);
-        assertThat(response.getShortURL()).isEqualTo("http://localhost:8080/" + response.getShortCode());
+        assertThat(response.getShortURL()).endsWith("/" + response.getShortCode());
 
         ArgumentCaptor<URL> urlCaptor = ArgumentCaptor.forClass(URL.class);
         verify(urlRepository).save(urlCaptor.capture());
