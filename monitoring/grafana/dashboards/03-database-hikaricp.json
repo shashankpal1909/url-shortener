@@ -1,0 +1,152 @@
+{
+  "uid": "url-shortener-database",
+  "title": "URL Shortener — Database & HikariCP",
+  "tags": ["url-shortener", "database", "hikaricp"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HikariCP — Connection Pool Size",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "hikaricp_connections{application=\"url-shortener\"}",
+          "legendFormat": "Total Connections"
+        },
+        {
+          "expr": "hikaricp_connections_active{application=\"url-shortener\"}",
+          "legendFormat": "Active"
+        },
+        {
+          "expr": "hikaricp_connections_idle{application=\"url-shortener\"}",
+          "legendFormat": "Idle"
+        },
+        {
+          "expr": "hikaricp_connections_pending{application=\"url-shortener\"}",
+          "legendFormat": "Pending Threads"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "id": 2,
+      "title": "HikariCP — Connection Acquisition Time (p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(hikaricp_connections_acquire_seconds_bucket{application=\"url-shortener\"}[1m])) by (le, pool))",
+          "legendFormat": "p50 acquire {{pool}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(hikaricp_connections_acquire_seconds_bucket{application=\"url-shortener\"}[1m])) by (le, pool))",
+          "legendFormat": "p95 acquire {{pool}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(hikaricp_connections_acquire_seconds_bucket{application=\"url-shortener\"}[1m])) by (le, pool))",
+          "legendFormat": "p99 acquire {{pool}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 3,
+      "title": "HikariCP — Connection Usage Time (p50/p95/p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(hikaricp_connections_usage_seconds_bucket{application=\"url-shortener\"}[1m])) by (le, pool))",
+          "legendFormat": "p50 usage {{pool}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(hikaricp_connections_usage_seconds_bucket{application=\"url-shortener\"}[1m])) by (le, pool))",
+          "legendFormat": "p95 usage {{pool}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(hikaricp_connections_usage_seconds_bucket{application=\"url-shortener\"}[1m])) by (le, pool))",
+          "legendFormat": "p99 usage {{pool}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 4,
+      "title": "HikariCP — Connection Creation Time (p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(hikaricp_connections_creation_seconds_bucket{application=\"url-shortener\"}[1m])) by (le, pool))",
+          "legendFormat": "p99 creation {{pool}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 5,
+      "title": "HikariCP — Timed-Out Connection Acquisitions",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "rate(hikaricp_connections_timeout_total{application=\"url-shortener\"}[1m])",
+          "legendFormat": "Timeouts/s {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "title": "Connection Pool Utilisation %",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "100 * hikaricp_connections_active{application=\"url-shortener\"} / hikaricp_connections{application=\"url-shortener\"}",
+          "legendFormat": "Pool Utilisation %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "label": "Datasource"
+      }
+    ]
+  }
+}

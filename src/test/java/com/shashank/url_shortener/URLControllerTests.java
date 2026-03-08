@@ -19,6 +19,7 @@ import com.shashank.url_shortener.controller.URLController;
 import com.shashank.url_shortener.dto.ShortenRequest;
 import com.shashank.url_shortener.dto.ShortenResponse;
 import com.shashank.url_shortener.dto.StatsResponse;
+import com.shashank.url_shortener.metrics.UrlShortenerMetrics;
 import com.shashank.url_shortener.service.URLService;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +27,9 @@ class URLControllerTests {
 
     @Mock
     private URLService urlService;
+
+    @Mock
+    private UrlShortenerMetrics metrics;
 
     @InjectMocks
     private URLController urlController;
