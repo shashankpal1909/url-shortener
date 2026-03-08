@@ -61,8 +61,8 @@ graph TB
     end
 
     subgraph Cache["Redis (optional)"]
-        URLCache["url:{shortCode}\noriginalURL or sentinel"]
-        ClickCache["clicks:{shortCode}\nINTEGER counter"]
+        URLCache["url:shortCode\noriginalURL or sentinel"]
+        ClickCache["clicks:shortCode\nINTEGER counter"]
     end
 
     subgraph DB["PostgreSQL"]
@@ -70,8 +70,8 @@ graph TB
     end
 
     Client -->|POST /shorten| Controller
-    Client -->|GET /{shortCode}| Controller
-    Client -->|GET /stats/{shortCode}| Controller
+    Client -->|GET /:shortCode| Controller
+    Client -->|GET /stats/:shortCode| Controller
 
     Controller --> Service
 
@@ -150,7 +150,7 @@ sequenceDiagram
     participant Svc as URLService
     participant DB as PostgreSQL
 
-    C->>Ctrl: POST /shorten { url }
+    C->>Ctrl: POST /shorten [url]
     Ctrl->>Svc: shortenURL(request)
     loop Up to 10 attempts
         Svc->>Svc: generateShortCode()
@@ -162,8 +162,8 @@ sequenceDiagram
             Svc->>Svc: retry
         end
     end
-    Svc-->>Ctrl: ShortenResponse { shortCode, shortURL }
-    Ctrl-->>C: 200 OK { shortCode, shortURL }
+    Svc-->>Ctrl: ShortenResponse [shortCode, shortURL]
+    Ctrl-->>C: 200 OK [shortCode, shortURL]
 ```
 
 ---
@@ -174,7 +174,7 @@ This diagram shows all three lookup paths: negative cache hit, positive cache hi
 
 ```mermaid
 flowchart TD
-    A([GET /{shortCode}]) --> B{cache-enabled\nAND Redis up?}
+    A([GET /:shortCode]) --> B{cache-enabled\nAND Redis up?}
 
     B -->|No| DB1[Query PostgreSQL]
     B -->|Yes| RC[GET url:shortCode from Redis]
@@ -212,7 +212,7 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     Note over Redirect,Redis: Per-redirect — no DB write
-    Redirect->>Redis: INCR clicks:{shortCode}
+    Redirect->>Redis: INCR clicks:shortCode
 
     Note over Aggregator,DB: Every flush-interval-ms
     Aggregator->>Redis: SCAN clicks:* (cursor-based, non-blocking)
@@ -225,7 +225,7 @@ sequenceDiagram
         Aggregator->>DB: UPDATE clickCount += n (per shortCode)
         DB-->>Aggregator: rows updated
     else DB write fails (transient outage)
-        Aggregator->>Redis: INCRBY clicks:{shortCode} n (restore drained values)
+        Aggregator->>Redis: INCRBY clicks:shortCode n (restore drained values)
         Note right of Aggregator: Clicks preserved;\nnext cycle retries
     end
 ```
