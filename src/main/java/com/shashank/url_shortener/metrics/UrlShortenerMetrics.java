@@ -21,6 +21,7 @@ public class UrlShortenerMetrics {
     // -------------------------------------------------------------------------
     // URL creation
     // -------------------------------------------------------------------------
+    private final MeterRegistry registry;
     private final Counter urlShortenedCounter;
     private final Counter urlShortenErrorCounter;
     private final Timer   urlShortenLatencyTimer;
@@ -50,6 +51,8 @@ public class UrlShortenerMetrics {
     private final Counter clickFlushErrorCounter;
 
     public UrlShortenerMetrics(MeterRegistry registry) {
+        this.registry = registry;
+
         // URL shortening
         urlShortenedCounter = Counter.builder("url.shortened.total")
                 .description("Total number of URLs successfully shortened")
@@ -136,7 +139,7 @@ public class UrlShortenerMetrics {
     }
 
     public Timer.Sample startShortenTimer() {
-        return Timer.start();
+        return Timer.start(registry);
     }
 
     public void stopShortenTimer(Timer.Sample sample) {
@@ -156,7 +159,7 @@ public class UrlShortenerMetrics {
     }
 
     public Timer.Sample startRedirectTimer() {
-        return Timer.start();
+        return Timer.start(registry);
     }
 
     public void stopRedirectTimer(Timer.Sample sample) {
