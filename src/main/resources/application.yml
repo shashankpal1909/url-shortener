@@ -12,8 +12,20 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+feature:
+  cache-enabled: ${FEATURE_CACHE_ENABLED:true}
+  async-clicks-enabled: ${FEATURE_ASYNC_CLICKS_ENABLED:true}
 
 app:
+  cache:
+    url-ttl-seconds: ${APP_CACHE_URL_TTL_SECONDS:3600}
+  click-aggregation:
+    flush-interval-ms: ${APP_CLICK_AGGREGATION_FLUSH_INTERVAL_MS:10000}
   datasource:
     pool:
       maximum-size: 20
