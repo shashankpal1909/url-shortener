@@ -33,7 +33,7 @@ app:
       connection-timeout-ms: 30000
       idle-timeout-ms: 600000
       max-lifetime-ms: 1800000
-      auto-commit: true
+      auto-commit: false
       connection-test-query: SELECT 1
       name: URLShortenerHikariPool
     prepared-statements:

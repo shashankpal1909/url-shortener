@@ -11,15 +11,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -160,7 +163,7 @@ class URLServiceTest {
         ClickAggregationService aggregationService =
                 new ClickAggregationService(redisTemplate, urlRepository);
 
-        when(redisTemplate.execute(any(org.springframework.data.redis.core.RedisCallback.class)))
+        when(redisTemplate.execute(ArgumentMatchers.<RedisCallback<Set<String>>>any()))
                 .thenReturn(java.util.Set.of(URLService.CLICK_KEY_PREFIX + "abc123"));
         when(redisTemplate.executePipelined(any(org.springframework.data.redis.core.RedisCallback.class)))
                 .thenReturn(java.util.List.of("42"));
@@ -176,7 +179,7 @@ class URLServiceTest {
         ClickAggregationService aggregationService =
                 new ClickAggregationService(redisTemplate, urlRepository);
 
-        when(redisTemplate.execute(any(org.springframework.data.redis.core.RedisCallback.class)))
+        when(redisTemplate.execute(ArgumentMatchers.<RedisCallback<Set<String>>>any()))
                 .thenReturn(java.util.Set.of());
 
         aggregationService.flushClickCounts();

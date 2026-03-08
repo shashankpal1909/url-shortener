@@ -82,6 +82,14 @@ public class ClickAggregationService {
         });
 
         // Step 3: Apply increments to the database.
+        applyIncrementsToDatabase(keys, rawValues);
+    }
+
+    /**
+     * Applies the Redis counter increments to the database.
+     * Called within the transaction started by flushClickCounts().
+     */
+    private void applyIncrementsToDatabase(List<String> keys, List<Object> rawValues) {
         for (int i = 0; i < keys.size(); i++) {
             Object raw = rawValues.get(i);
             if (raw == null) {
@@ -114,7 +122,7 @@ public class ClickAggregationService {
                     .match(URLService.CLICK_KEY_PREFIX + "*")
                     .count(100)
                     .build();
-            try (Cursor<byte[]> cursor = connection.scan(options)) {
+            try (Cursor<byte[]> cursor = connection.keyCommands().scan(options)) {
                 cursor.forEachRemaining(
                         key -> keys.add(new String(key, StandardCharsets.UTF_8)));
             }
