@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.shashank.url_shortener.dto.ShortenRequest;
 import com.shashank.url_shortener.dto.ShortenResponse;
 import com.shashank.url_shortener.dto.StatsResponse;
+import com.shashank.url_shortener.metrics.UrlShortenerMetrics;
 import com.shashank.url_shortener.service.URLService;
 
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class URLController {
 
     private final URLService urlService;
+    private final UrlShortenerMetrics metrics;
 
     @GetMapping("/{shortCode}")
     public ResponseEntity<Void> getOriginalURL(@PathVariable String shortCode) {
@@ -30,10 +32,14 @@ public class URLController {
                 .<ResponseEntity<Void>>map(
                         url -> {
                             urlService.incrementClickCount(shortCode);
+                            metrics.recordRedirectFound();
                             return ResponseEntity.status(
                                     HttpStatus.FOUND).location(URI.create(url)).build();
                         })
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    metrics.recordRedirectNotFound();
+                    return ResponseEntity.notFound().build();
+                });
     }
 
     @PostMapping("/shorten")

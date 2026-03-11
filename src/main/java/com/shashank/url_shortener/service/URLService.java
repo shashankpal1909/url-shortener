@@ -16,9 +16,11 @@ import com.shashank.url_shortener.dto.ShortenRequest;
 import com.shashank.url_shortener.dto.ShortenResponse;
 import com.shashank.url_shortener.dto.StatsResponse;
 import com.shashank.url_shortener.entity.URL;
+import com.shashank.url_shortener.metrics.UrlShortenerMetrics;
 import com.shashank.url_shortener.repository.URLRepository;
 import com.shashank.url_shortener.util.ShortCodeGenerator;
 
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,6 +39,7 @@ public class URLService {
     private final URLRepository urlRepository;
     private final FeatureProperties featureProperties;
     private final AppProperties appProperties;
+    private final UrlShortenerMetrics metrics;
 
     /** Injected only when Redis auto-configuration is active (not in tests). */
     @Autowired(required = false)
@@ -44,6 +47,7 @@ public class URLService {
 
     @Transactional
     public ShortenResponse shortenURL(ShortenRequest request) {
+        Timer.Sample sample = metrics.startShortenTimer();
         URL savedUrl = null;
 
         for (int attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
@@ -64,6 +68,7 @@ public class URLService {
         }
 
         if (savedUrl == null) {
+            metrics.recordUrlShortenError();
             throw new IllegalStateException("Unable to generate unique short code after multiple attempts");
         }
 
@@ -75,6 +80,9 @@ public class URLService {
 
         response.setShortURL(baseURL + "/" + savedUrl.getShortCode());
         response.setShortCode(savedUrl.getShortCode());
+
+        metrics.recordUrlShortened();
+        metrics.stopShortenTimer(sample);
 
         return response;
     }
@@ -94,6 +102,7 @@ public class URLService {
      * </ul>
      */
     public Optional<String> getOriginalURL(String shortCode) {
+        Timer.Sample sample = metrics.startRedirectTimer();
         if (featureProperties.isCacheEnabled() && redisTemplate != null) {
             String cacheKey = CACHE_KEY_PREFIX + shortCode;
             try {
@@ -101,12 +110,18 @@ public class URLService {
                 if (cached != null) {
                     if (NEGATIVE_CACHE_SENTINEL.equals(cached)) {
                         log.debug("Negative cache hit for shortCode={}", shortCode);
+                        metrics.recordCacheHitNegative();
+                        metrics.stopRedirectTimer(sample);
                         return Optional.empty();
                     }
+                    metrics.recordCacheHitPositive();
+                    metrics.stopRedirectTimer(sample);
                     return Optional.of(cached);
                 }
+                metrics.recordCacheMiss();
                 log.debug("Cache miss for shortCode={}", shortCode);
             } catch (DataAccessException ex) {
+                metrics.recordCacheError();
                 log.warn("Redis unavailable during cache lookup for shortCode={}; falling back to DB", shortCode, ex);
             }
         }
@@ -120,6 +135,7 @@ public class URLService {
                 long ttl = appProperties.getCache().getUrlTtlSeconds();
                 try {
                     redisTemplate.opsForValue().set(cacheKey, result.get(), Duration.ofSeconds(ttl));
+                    metrics.recordCachePopulate();
                 } catch (DataAccessException ex) {
                     log.warn("Redis unavailable when populating cache for shortCode={}", shortCode, ex);
                 }
@@ -128,6 +144,7 @@ public class URLService {
                 long negativeTtl = appProperties.getCache().getNegativeTtlSeconds();
                 try {
                     redisTemplate.opsForValue().set(cacheKey, NEGATIVE_CACHE_SENTINEL, Duration.ofSeconds(negativeTtl));
+                    metrics.recordCacheNegativePopulate();
                     log.debug("Stored negative cache entry for shortCode={} (TTL={}s)", shortCode, negativeTtl);
                 } catch (DataAccessException ex) {
                     log.warn("Redis unavailable when storing negative cache for shortCode={}", shortCode, ex);
@@ -135,6 +152,7 @@ public class URLService {
             }
         }
 
+        metrics.stopRedirectTimer(sample);
         return result;
     }
 

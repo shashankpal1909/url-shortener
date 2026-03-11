@@ -19,6 +19,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.shashank.url_shortener.metrics.UrlShortenerMetrics;
 import com.shashank.url_shortener.repository.URLRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,7 @@ public class ClickAggregationService {
 
     private final StringRedisTemplate redisTemplate;
     private final URLRepository urlRepository;
+    private final UrlShortenerMetrics metrics;
 
     /**
      * Periodically drains Redis click counters and applies them to the database.
@@ -73,6 +75,7 @@ public class ClickAggregationService {
         }
 
         log.debug("Flushing click counts for {} short codes", keys.size());
+        metrics.recordClickFlushRun();
 
         // Step 2: Pipelined GETDEL — all keys drained in a single round-trip.
         List<Object> rawValues = redisTemplate.executePipelined(new RedisCallback<Object>() {
@@ -96,7 +99,9 @@ public class ClickAggregationService {
         // clicks are permanently lost (Redis is not part of the DB transaction).
         try {
             applyIncrementsToDatabase(increments);
+            metrics.recordClickFlushUrls(increments.size());
         } catch (DataAccessException ex) {
+            metrics.recordClickFlushError();
             log.error("DB update failed during click flush; restoring {} counters to Redis", increments.size(), ex);
             restoreToRedis(increments);
             throw ex;

@@ -19,3 +19,7 @@ spring:
 feature:
   cache-enabled: false
   async-clicks-enabled: false
+
+management:
+  tracing:
+    enabled: false

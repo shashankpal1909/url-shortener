@@ -30,6 +30,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.shashank.url_shortener.config.AppProperties;
 import com.shashank.url_shortener.config.FeatureProperties;
 import com.shashank.url_shortener.entity.URL;
+import com.shashank.url_shortener.metrics.UrlShortenerMetrics;
 import com.shashank.url_shortener.repository.URLRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,6 +51,9 @@ class URLServiceTest {
 
     @Mock
     private ValueOperations<String, String> valueOps;
+
+    @Mock
+    private UrlShortenerMetrics metrics;
 
     @InjectMocks
     private URLService urlService;
@@ -186,7 +190,7 @@ class URLServiceTest {
     @Test
     void clickAggregationService_flushesCountersToDb() {
         ClickAggregationService aggregationService =
-                new ClickAggregationService(redisTemplate, urlRepository);
+                new ClickAggregationService(redisTemplate, urlRepository, metrics);
 
         when(redisTemplate.execute(ArgumentMatchers.<RedisCallback<Set<String>>>any()))
                 .thenReturn(java.util.Set.of(URLService.CLICK_KEY_PREFIX + "abc123"));
@@ -202,7 +206,7 @@ class URLServiceTest {
     @Test
     void clickAggregationService_skipsWhenNoKeysPresent() {
         ClickAggregationService aggregationService =
-                new ClickAggregationService(redisTemplate, urlRepository);
+                new ClickAggregationService(redisTemplate, urlRepository, metrics);
 
         when(redisTemplate.execute(ArgumentMatchers.<RedisCallback<Set<String>>>any()))
                 .thenReturn(java.util.Set.of());

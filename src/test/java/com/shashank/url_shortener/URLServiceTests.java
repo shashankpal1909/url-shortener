@@ -23,6 +23,7 @@ import com.shashank.url_shortener.dto.ShortenRequest;
 import com.shashank.url_shortener.dto.ShortenResponse;
 import com.shashank.url_shortener.dto.StatsResponse;
 import com.shashank.url_shortener.entity.URL;
+import com.shashank.url_shortener.metrics.UrlShortenerMetrics;
 import com.shashank.url_shortener.repository.URLRepository;
 import com.shashank.url_shortener.service.URLService;
 
@@ -37,6 +38,9 @@ class URLServiceTests {
 
     @Mock
     private AppProperties appProperties;
+
+    @Mock
+    private UrlShortenerMetrics metrics;
 
     @InjectMocks
     private URLService urlService;
