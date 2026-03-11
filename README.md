@@ -225,8 +225,7 @@ sequenceDiagram
         Aggregator->>DB: UPDATE clickCount += n (per shortCode)
         DB-->>Aggregator: rows updated
     else DB write fails (transient outage)
-        Aggregator->>Redis: INCRBY clicks:shortCode n (restore drained values)
-        Note right of Aggregator: Clicks preserved; next cycle retries
+        Aggregator->>Redis: INCRBY clicks:shortCode n (restore for retry)
     end
 ```
 
