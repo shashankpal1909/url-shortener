@@ -45,6 +45,9 @@ services:
       - redis
 
   app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: url-shortener:latest
     ports:
       - "8080:8080"

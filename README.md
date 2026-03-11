@@ -284,8 +284,16 @@ Both flags can be set independently. With both disabled the service runs in a st
 ### Start infrastructure
 
 ```bash
-docker-compose up -d
+docker compose up -d postgres redis pgadmin redis-commander victoriametrics grafana zipkin
 ```
+
+### Build and start the application container
+
+```bash
+docker compose up -d --build app
+```
+
+This path uses the repository Dockerfile directly and avoids the Spring Boot `build-image` goal, which can fail on newer Docker Desktop setups that expose Paketo builder images without the metadata labels expected by the Maven plugin.
 
 ### Run the application
 

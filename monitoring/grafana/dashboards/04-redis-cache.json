@@ -1,32 +1,62 @@
 {
   "uid": "url-shortener-cache",
-  "title": "URL Shortener — Redis Cache",
-  "tags": ["url-shortener", "redis", "cache"],
+  "title": "URL Shortener \u2014 Redis Cache",
+  "tags": [
+    "url-shortener",
+    "redis",
+    "cache"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "refresh": "15s",
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "panels": [
     {
       "id": 1,
       "title": "Cache Operations Rate (ops/s)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "sum(rate(url_cache_operations_total{application=\"url-shortener\"}[1m])) by (operation)",
           "legendFormat": "{{operation}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "lineWidth": 2 } } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        }
+      }
     },
     {
       "id": 2,
       "title": "Cache Hit Rate %",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "100 * sum(rate(url_cache_operations_total{application=\"url-shortener\",operation=~\"hit_positive|hit_negative\"}[1m])) / sum(rate(url_cache_operations_total{application=\"url-shortener\",operation=~\"hit_positive|hit_negative|miss\"}[1m]))",
@@ -41,14 +71,28 @@
           "legendFormat": "Negative Hit Rate %"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      }
     },
     {
       "id": 3,
       "title": "Cache Errors Rate (ops/s)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "rate(url_cache_operations_total{application=\"url-shortener\",operation=\"error\"}[1m])",
@@ -56,9 +100,25 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "ops" },
+        "defaults": {
+          "unit": "ops"
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Cache Errors/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cache Errors/s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       }
     },
@@ -66,8 +126,16 @@
       "id": 4,
       "title": "Cache Populate Rate (ops/s)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "rate(url_cache_operations_total{application=\"url-shortener\",operation=\"populate_positive\"}[1m])",
@@ -78,14 +146,26 @@
           "legendFormat": "Negative Populate/s"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "ops" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
     },
     {
       "id": 5,
       "title": "Cumulative Cache Operations",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "sum(url_cache_operations_total{application=\"url-shortener\",operation=\"hit_positive\"})",
@@ -104,15 +184,34 @@
           "legendFormat": "Errors"
         }
       ],
-      "options": { "reduceOptions": { "calcs": ["last"] }, "orientation": "horizontal" },
-      "fieldConfig": { "defaults": { "unit": "short" } }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ]
+        },
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
     },
     {
       "id": 6,
       "title": "Click Flush Runs Rate",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "rate(url_click_flush_runs_total{application=\"url-shortener\"}[1m])",
@@ -123,14 +222,26 @@
           "legendFormat": "URLs Flushed/s"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "ops" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
     },
     {
       "id": 7,
       "title": "Click Flush Errors Rate",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "rate(url_click_flush_errors_total{application=\"url-shortener\"}[1m])",
@@ -138,9 +249,25 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "ops" },
+        "defaults": {
+          "unit": "ops"
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Flush Errors/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Flush Errors/s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       }
     }
@@ -151,7 +278,13 @@
         "name": "datasource",
         "type": "datasource",
         "pluginId": "prometheus",
-        "label": "Datasource"
+        "label": "Datasource",
+        "current": {
+          "selected": true,
+          "text": "VictoriaMetrics",
+          "value": "victoria-metrics"
+        },
+        "query": "prometheus"
       }
     ]
   }
